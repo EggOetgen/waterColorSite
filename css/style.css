@@ -8,3 +8,7 @@ body{
     left: 25%;
     top: 25%; */
 }
+
+#video {
+    display: none;
+}

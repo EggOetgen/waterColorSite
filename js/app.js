@@ -5,14 +5,23 @@ var uniforms;
  let feedback;
  let displace;
  let slopeTexture;
+ let blend;
+
 //  var materialSlope
 var meshB
  let mouseX = 0;
  let mouseY = 2;
+ const videoEl = document.getElementById('video');
+
 init();
 animate();
-
 function init() {
+ 
+   
+
+textureCam = new THREE.VideoTexture(videoEl);
+
+getWebcam();
     stats = createStats();
 document.body.appendChild(stats.domElement);
 
@@ -21,17 +30,19 @@ document.body.appendChild(stats.domElement);
     camera = new THREE.Camera();
     camera.position.z = 1;
 
-    scene = new THREE.Scene();
+    sceneOut = new THREE.Scene();
     rtScene = new THREE.Scene();
     rtScene2 = new THREE.Scene();
     rtScene3 = new THREE.Scene();
     rtScene4 = new THREE.Scene();
+    blendScene = new THREE.Scene();
 
 
     noiseTexture = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight);
     slopeTexture = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight);
     feedback = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight);
     displace = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight);
+    blend = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight);
 
     // var geometry = new THREE.PlaneBufferGeometry( 2,2,window.innerWidth/100, window.innerHeight/100);
     var geometry = new THREE.PlaneBufferGeometry( 2,2);
@@ -47,11 +58,11 @@ document.body.appendChild(stats.domElement);
         oct: { type: "i", value: 10 },
     };
     uniformsSlope = {
-        tex0: { value: noiseTexture.texture },
+        tex0: { value: blend.texture },
         u_time: { type: "f", value: 1.0 },
         sampleStep: { type: "f", value: 0.01 },
         strength: { type: "f", value: 1.0 },
-        xSpeed: { type: "f", value: 0.0 },
+        xSpeed: { type: "f", value: 0.00 },
         ySpeed: { type: "f", value: 0.0 },
         u_resolution: { type: "v2", value: new THREE.Vector2() },
         u_mouse: { type: "v2", value: new THREE.Vector2() }
@@ -62,7 +73,7 @@ document.body.appendChild(stats.domElement);
         tex1: { value: feedback.texture },
         u_time: { type: "f", value: 1.0 },
         midPoint: { type: "f", value: 0.5 },
-        weight: { type: "f", value: 0.09 },
+        weight: { type: "f", value: 0.009 },
         u_resolution: { type: "v2", value: new THREE.Vector2() },
         u_mouse: { type: "v2", value: new THREE.Vector2() }
     };
@@ -70,7 +81,14 @@ document.body.appendChild(stats.domElement);
         tex0: { value: noiseTexture.texture },
         u_time: { type: "f", value: 1.0 },
         midPoint: { type: "f", value: 0.5 },
-        weight: { type: "f", value: 0.09 },
+        weight: { type: "f", value: 0.9 },
+        u_resolution: { type: "v2", value: new THREE.Vector2() },
+        u_mouse: { type: "v2", value: new THREE.Vector2() }
+    };
+    uniformsBlend= {
+        tex0: { value: noiseTexture.texture },
+        tex1: { value: feedback.texture },
+        u_time: { type: "f", value: 1.0 },
         u_resolution: { type: "v2", value: new THREE.Vector2() },
         u_mouse: { type: "v2", value: new THREE.Vector2() }
     };
@@ -99,12 +117,20 @@ document.body.appendChild(stats.domElement);
         fragmentShader: document.getElementById( 'feedbackShader' ).textContent
     } );
 
+    var materialBlend = new THREE.ShaderMaterial( {
+        uniforms: uniformsBlend,
+        vertexShader: document.getElementById( 'vertexShader' ).textContent,
+        fragmentShader: document.getElementById( 'blendShader' ).textContent
+    } );
+
 
     var mesh = new THREE.Mesh( geometry, materialDisplace );
-    scene.add( mesh );
+    sceneOut.add( mesh );
     var mesh2 = new THREE.Mesh( geometry, materialDisplace );
-
     rtScene4.add( mesh2);
+
+    var meshBlend = new THREE.Mesh( geometry, materialBlend );
+    blendScene.add( meshBlend);
 
     meshB = new THREE.Mesh( geometry, materialSimplex );
     rtScene.add( meshB );
@@ -113,14 +139,6 @@ document.body.appendChild(stats.domElement);
     var meshD = new THREE.Mesh( geometry, materialFeedback );
 
     rtScene3.add( meshD );
-
-//     console.log(meshB.material)
-//     meshB.material= materialDisplace;
-//     // meshB.material.needsUpdate = true;
-//     meshB.material = materialSlope;
-// // meshB.material.needsUpdate = true;
-//     console.log(meshB.material)
-
 
     renderer = new THREE.WebGLRenderer();
     renderer.setPixelRatio( window.devicePixelRatio );
@@ -136,20 +154,12 @@ document.body.appendChild(stats.domElement);
     renderer.render( rtScene, camera );
    
     document.onmousemove = function(e){
-        // uniformsDisplace.weight.value = e.pageX/window.innerWidth;
-        // uniformsDisplace.u_resolution.value.x = e.pageX
-
-        // uniformsDisplace.u_mouse.value.y = e.pageY
-        // uniformsB.sampleStep.value= e.pageX/window.innerWidth;
 
     }
     document.onmousedown = function(e){
-        // uniformsDisplace.weight.value = e.pageX/window.innerWidth;
-        // uniformsDisplace.u_resolution.value.x = e.pageX
+        // uniformsFeedback.tex0.value = textureCam;// noiseTexture.texture
+        uniformsBlend.tex0.value = textureCam;// noiseTexture.texture
 
-        // uniformsDisplace.u_mouse.value.y = e.pageY
-        // uniformsB.sampleStep.value= e.pageX/window.innerWidth;
-        uniformsFeedback.tex0.value = noiseTexture.texture
     }
 
 
@@ -184,13 +194,17 @@ function render() {
     uniformsSimplex.u_time.value += 0.01;
 
 // uniforms.tDiffuse = noiseTexture;
-// meshB.material = materialSlope;
+// meshB.material = noiseTexture.texture;
 // meshB.material.needsUpdate = true;
 stats.begin();
 
 renderer.setRenderTarget( noiseTexture );
 renderer.clear();
 renderer.render( rtScene, camera );
+
+renderer.setRenderTarget( blend );
+renderer.clear();
+renderer.render( blendScene, camera );
 
 renderer.setRenderTarget( slopeTexture );
 renderer.clear();
@@ -200,20 +214,49 @@ renderer.render( rtScene2, camera );
 renderer.setRenderTarget( feedback );
 renderer.render(rtScene3, camera);
 
-renderer.setRenderTarget( null );
+
+
+renderer.setRenderTarget( feedback );
 renderer.clear();
-renderer.render( scene, camera );
+renderer.render( rtScene3, camera );
+
 renderer.setRenderTarget( displace );
 renderer.clear();
 renderer.render( rtScene4, camera );
 
-renderer.setRenderTarget( feedback );
-// renderer.setRenderTarget( null );
+renderer.setRenderTarget( null );
 renderer.clear();
-renderer.render( rtScene3, camera );
+renderer.render( sceneOut, camera );
+
 
 uniformsFeedback.tex0.value = displace.texture
+
 stats.end();
 
 }
 
+function getWebcam() {
+    const constraints = {
+        video: true,
+        audio: false
+    };
+    return navigator.mediaDevices.getUserMedia(constraints)
+        .then(stream => {
+            videoEl.srcObject = stream;
+           
+            mediaRecorder = new MediaRecorder(stream);
+            
+            return new Promise((resolve, reject) => {
+                videoEl.onloadedmetadata = (e) => {
+                    videoEl.style.width =`${videoEl.clientWidth}px`;
+                    videoEl.style.height = `${videoEl.clientHeight}px`;
+                    videoEl.width = videoEl.clientWidth;
+                    videoEl.height = videoEl.clientHeight;
+                
+                    videoEl.play();
+
+                    resolve(videoEl);
+                };
+            });
+        });
+}

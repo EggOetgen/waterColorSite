@@ -12,6 +12,8 @@
   </head>
 
 <body>
+    <video id="video" muted></video>
+
     <div id="container"></div>
     <script src="js/src/three.js"></script>
     <script id="vertexShader" type="x-shader/x-vertex">
@@ -240,6 +242,32 @@ gl_FragColor = vec4(color,1.0);
                
                 vec4 color = texture2D( tex0, vUv );
 
+				gl_FragColor = color;
+                //gl_FragColor=vec4(u_mouse.y / u_resolution.y,0.0,0.0,1.0);
+
+			}
+        </script>
+
+        <script id="blendShader" type="x-shader/x-fragment">
+
+            varying vec2 vUv;
+			uniform sampler2D tex0;
+            uniform sampler2D tex1;
+
+            uniform vec2 u_resolution;
+            uniform vec2 u_mouse;
+
+        
+			void main() {
+               
+                vec4 color = vec4(0.5, 0.5, 0.5, 1.0);
+                 vec4 a =  texture2D( tex0, vUv );
+                 vec4 b =  texture2D( tex1, vUv );
+
+                color.r =  abs(a.r - b.r);
+                color.g =  abs(a.g - b.g);
+                color.b =  abs(a.b - b.b);
+                
 				gl_FragColor = color;
                 //gl_FragColor=vec4(u_mouse.y / u_resolution.y,0.0,0.0,1.0);
 
