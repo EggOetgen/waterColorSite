@@ -7,6 +7,7 @@
    
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="./css/style.css">
+    <script type="text/javascript" src="./js/src/dat.gui.min.js"></script>
     <script src="./js/src/stats.min.js"></script>
   
   </head>
@@ -270,6 +271,33 @@ gl_FragColor = vec4(color,1.0);
                 
 				gl_FragColor = color;
                 //gl_FragColor=vec4(u_mouse.y / u_resolution.y,0.0,0.0,1.0);
+
+			}
+        </script>
+
+        <script id="mixShader" type="x-shader/x-fragment">
+
+            varying vec2 vUv;
+			uniform sampler2D tex0;
+            uniform sampler2D tex1;
+
+            uniform vec2 u_resolution;
+            uniform float mixAmt;
+
+        
+			void main() {
+               
+                vec4 color = vec4(0.5, 0.5, 0.5, 1.0);
+                 vec4 a =  texture2D( tex0, vUv );
+                 vec4 b =  texture2D( tex1, vUv );
+
+               
+        color.r = mix(b.r ,a.r, mixAmt);
+        color.g = mix(b.g ,a.g, mixAmt);
+        color.b = mix(b.b ,a.b, mixAmt);
+                
+		gl_FragColor = color;
+                //gl_FragColor=vec4(mixAmt,0.0,0.0,1.0);
 
 			}
         </script>

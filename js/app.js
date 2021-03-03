@@ -1,3 +1,72 @@
+var gui = new dat.GUI({name: 'My GUI'});
+let c  = 0;
+// Add a string controller.
+var displaceControls = {
+    midPoint: 0.5,
+    weight: 0.05
+};
+
+var noiseControls = {
+    scale: 10,
+    damp: 1,
+    amp: 1.0,
+    offset: 0.3,
+    oct: 10
+}
+
+
+var slopeControls = {
+    xSpeed: 0.,
+    ySpeed: 0.,
+    strength: 1.0,
+    sampleStep: 0.01,
+}
+
+var mixControls = {
+    mixAmount:0.1
+}
+let cam = false;
+let mod = false;
+var sources = { source:()=>{ cam = !cam
+                         if(cam){
+                             uniformsFeedback.tex0.value = textureCam;    
+                             uniformsMix.tex0.value = textureCam;                 
+             
+                         }else{
+                             uniformsFeedback.tex0.value = noiseTexture.texture
+                             uniformsMix.tex0.value = noiseTexture.texture
+
+                        }},
+                modulator:()=>{ mod = !mod
+                            if(mod){
+                               uniformsBlend.tex0.value = textureCam;
+                               uniformsMix.tex0.value = textureCam;
+
+                            }else{
+                               uniformsBlend.tex0.value = noiseTexture.texture;
+                               uniformsMix.tex0.value = noiseTexture.texture
+
+                           }}
+                    };
+
+gui.add(sources,'source');
+gui.add(sources,'modulator');
+gui.add(mixControls, 'mixAmount', 0.0,0.3 );
+
+gui.add(displaceControls, 'weight', -.01, .2 );
+// gui.add(displaceControls, 'midPoint', 0., 1.0 );
+
+gui.add(noiseControls, 'scale', 1, 100 );
+gui.add(noiseControls, 'damp', 0, 1, 1 );
+gui.add(noiseControls, 'amp', 0., 1.0 );
+gui.add(noiseControls, 'offset', 0., 1.0 );
+gui.add(noiseControls, 'oct', 1., 45 );
+gui.add(slopeControls, 'xSpeed', -0.1, 0.1);
+gui.add(slopeControls, 'ySpeed', -0.1, 0.1 );
+gui.add(slopeControls, 'strength', 0.1, 10. );
+gui.add(slopeControls, 'sampleStep', -0.01, 0.01 );
+
+
 var container;
 var camera, scene, rtScene, renderer, rtScene2;
 var uniforms;
@@ -6,7 +75,9 @@ var uniforms;
  let displace;
  let slopeTexture;
  let blend;
-
+ let blendScene;
+ let mixScene;
+let mix;
 //  var materialSlope
 var meshB
  let mouseX = 0;
@@ -36,6 +107,7 @@ document.body.appendChild(stats.domElement);
     rtScene3 = new THREE.Scene();
     rtScene4 = new THREE.Scene();
     blendScene = new THREE.Scene();
+    mixScene = new THREE.Scene();
 
 
     noiseTexture = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight);
@@ -43,45 +115,44 @@ document.body.appendChild(stats.domElement);
     feedback = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight);
     displace = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight);
     blend = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight);
+    mix = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight);
 
-    // var geometry = new THREE.PlaneBufferGeometry( 2,2,window.innerWidth/100, window.innerHeight/100);
-    var geometry = new THREE.PlaneBufferGeometry( 2,2);
+    var geometry = new THREE.PlaneBufferGeometry( 2,2,window.innerWidth/100, window.innerHeight/100);
+    // var geometry = new THREE.PlaneBufferGeometry( 2,2);
 
     uniformsSimplex = {
         u_time: { type: "f", value: 1.0 },
         u_resolution: { type: "v2", value: new THREE.Vector2() },
         u_mouse: { type: "v2", value: new THREE.Vector2() },
-        scale: { type: "f", value: 10 },
-        damp: { type: "i", value: 1 },
-        amp: { type: "f", value: 1.0 },
-        offst: { type: "f", value: 0. },
-        oct: { type: "i", value: 10 },
+        scale: { type: "f", value: noiseControls.scale },
+        damp: { type: "i", value: noiseControls.damp },
+        amp: { type: "f", value: noiseControls.amp },
+        offset: { type: "f", value: noiseControls.offset },
+        oct: { type: "i", value: noiseControls.oct },
     };
     uniformsSlope = {
         tex0: { value: blend.texture },
         u_time: { type: "f", value: 1.0 },
-        sampleStep: { type: "f", value: 0.01 },
-        strength: { type: "f", value: 1.0 },
-        xSpeed: { type: "f", value: 0.00 },
-        ySpeed: { type: "f", value: 0.0 },
+        sampleStep: { type: "f", value: slopeControls.sampleStep },
+        strength: { type: "f", value: slopeControls.strength },
+        xSpeed: { type: "f", value: slopeControls.xSpeed },
+        ySpeed: { type: "f", value: slopeControls.ySpeed },
         u_resolution: { type: "v2", value: new THREE.Vector2() },
         u_mouse: { type: "v2", value: new THREE.Vector2() }
     };
 
     uniformsDisplace = {
         tex0: { value: slopeTexture.texture },
-        tex1: { value: feedback.texture },
+        tex1: { value: mix.texture },
         u_time: { type: "f", value: 1.0 },
-        midPoint: { type: "f", value: 0.5 },
-        weight: { type: "f", value: 0.009 },
+        midPoint: { type: "f", value: displaceControls.midPoint },
+        weight: { type: "f", value: displaceControls.weight },
         u_resolution: { type: "v2", value: new THREE.Vector2() },
         u_mouse: { type: "v2", value: new THREE.Vector2() }
     };
     uniformsFeedback= {
         tex0: { value: noiseTexture.texture },
-        u_time: { type: "f", value: 1.0 },
-        midPoint: { type: "f", value: 0.5 },
-        weight: { type: "f", value: 0.9 },
+       
         u_resolution: { type: "v2", value: new THREE.Vector2() },
         u_mouse: { type: "v2", value: new THREE.Vector2() }
     };
@@ -91,6 +162,13 @@ document.body.appendChild(stats.domElement);
         u_time: { type: "f", value: 1.0 },
         u_resolution: { type: "v2", value: new THREE.Vector2() },
         u_mouse: { type: "v2", value: new THREE.Vector2() }
+    };
+    uniformsMix= {
+        tex0: { value: noiseTexture.texture },
+        tex1: { value: displace.texture },
+        u_time: { type: "f", value: 1.0 },
+        u_resolution: { type: "v2", value: new THREE.Vector2() },
+        mixAmt: { type: "f", value: 0.1 }
     };
 
     var materialSimplex = new THREE.ShaderMaterial( {
@@ -123,6 +201,12 @@ document.body.appendChild(stats.domElement);
         fragmentShader: document.getElementById( 'blendShader' ).textContent
     } );
 
+    var materialMix = new THREE.ShaderMaterial( {
+        uniforms: uniformsMix,
+        vertexShader: document.getElementById( 'vertexShader' ).textContent,
+        fragmentShader: document.getElementById( 'mixShader' ).textContent
+    } );
+
 
     var mesh = new THREE.Mesh( geometry, materialDisplace );
     sceneOut.add( mesh );
@@ -131,7 +215,10 @@ document.body.appendChild(stats.domElement);
 
     var meshBlend = new THREE.Mesh( geometry, materialBlend );
     blendScene.add( meshBlend);
-
+    
+    var meshMix = new THREE.Mesh( geometry, materialMix );
+    mixScene.add( meshMix);
+    
     meshB = new THREE.Mesh( geometry, materialSimplex );
     rtScene.add( meshB );
     meshC = new THREE.Mesh( geometry, materialSlope );
@@ -157,9 +244,8 @@ document.body.appendChild(stats.domElement);
 
     }
     document.onmousedown = function(e){
-        // uniformsFeedback.tex0.value = textureCam;// noiseTexture.texture
-        uniformsBlend.tex0.value = textureCam;// noiseTexture.texture
-
+        // if(c <=2){
+         
     }
 
 
@@ -192,15 +278,40 @@ function animate() {
 
 function render() {
     uniformsSimplex.u_time.value += 0.01;
+    uniformsSimplex.scale.value = noiseControls.scale;
+    uniformsSimplex.amp.value = noiseControls.amp;
+    uniformsSimplex.offset.value = noiseControls.offset;
+    uniformsSimplex.oct.value = noiseControls.oct;
 
+    uniformsDisplace.weight.value = displaceControls.weight;
+
+    uniformsSlope.xSpeed.value = slopeControls.xSpeed;
+    uniformsSlope.ySpeed.value = slopeControls.ySpeed;
+    uniformsSlope.strength.value = slopeControls.strength;
+    uniformsSlope.sampleStep.value = slopeControls.sampleStep;
+
+    uniformsMix.mixAmt.value = mixControls.mixAmount;
+
+    // uniformsDisplace.midPoint.value = displaceControls.midPoint;
+
+
+    // renderer.setRenderTarget( noiseTexture );
+    // renderer.clear();
+    // renderer.render( rtScene, camera );
+   
 // uniforms.tDiffuse = noiseTexture;
 // meshB.material = noiseTexture.texture;
 // meshB.material.needsUpdate = true;
 stats.begin();
 
+if(!cam || !mod){
 renderer.setRenderTarget( noiseTexture );
 renderer.clear();
 renderer.render( rtScene, camera );
+}
+renderer.setRenderTarget( mix );
+renderer.clear();
+renderer.render( mixScene, camera );
 
 renderer.setRenderTarget( blend );
 renderer.clear();
