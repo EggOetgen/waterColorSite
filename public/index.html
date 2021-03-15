@@ -9,11 +9,15 @@
     <link rel="stylesheet" href="./css/style.css">
     <script type="text/javascript" src="./js/src/dat.gui.min.js"></script>
     <script src="./js/src/stats.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.2"></script>
+     <!-- Load BodyPix -->
+     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.0"></script>
   
   </head>
 
 <body>
-    <video id="video" muted></video>
+    <video id="video" width="640" height="480"muted></video>
+    <canvas id="canvas"></canvas>
 
     <div id="container"></div>
     <script src="js/src/three.js"></script>
@@ -167,6 +171,10 @@ gl_FragColor = vec4(color,1.0);
             uniform float xSpeed;
             uniform float ySpeed;
         
+            float brightness( vec3 col){
+                return (0.2126*col.r + 0.7152*col.g + 0.0722*col.b);
+            }
+
 			void main() {
                 vec4 color = vec4(0.5, 0.5, 0.5, 1.0);
                 vec4 currPix = texture2D( tex0, vUv );
@@ -177,6 +185,10 @@ gl_FragColor = vec4(color,1.0);
 
                 float rL = (leftPix.x - rightPix.x) * 0.5;
                 float rU =(upPix.x - downPix.x) * 0.5;
+                //float rL = (brightness(leftPix.xyz) - brightness(rightPix.xyz)) * 0.5;
+                //float rU =(brightness(upPix.xyz) - brightness(downPix.xyz)) * 0.5;
+               
+                
                 color.r += (rL * strength) +xSpeed;
                 color.g += (rU * strength) + ySpeed;
                
@@ -228,6 +240,63 @@ gl_FragColor = vec4(color,1.0);
 
 			}
         </script>
+
+        <script id="displaceShaderMask" type="x-shader/x-fragment">
+
+            varying vec2 vUv;
+			uniform sampler2D tex0;
+            uniform sampler2D tex1;
+            uniform sampler2D tex2;
+
+            uniform vec2 u_resolution;
+            uniform vec2 u_mouse;
+
+            uniform float strength;
+            uniform float xSpeed;
+            uniform float ySpeed;
+
+            uniform float mixAmt;
+
+            uniform float midPoint;
+            uniform float weight;
+        
+			void main() {
+                vec4 color = vec4(0.5, 0.5, 0.5, 1.0);
+               
+                vec4 displacer = texture2D( tex0, vUv );
+                vec4 c = texture2D( tex2, vUv );
+
+                vec2 st = vec2(0.0);
+                if (displacer.r > midPoint)
+                    st.x = abs(midPoint -displacer.r)* weight;
+                else if (displacer.r < midPoint)
+                    st.x = -abs(midPoint -displacer.r)*weight;
+
+                if (displacer.g > midPoint)
+                    st.y = abs(midPoint -displacer.g)*weight;
+                else if (displacer.g < midPoint)
+                    st.y = -abs(midPoint -displacer.g)*weight;;
+
+                vec2 outUV = vUv + st;
+               // outUV.x = mod(outUV.x, u_resolution.x);
+                //outUV.y = mod(outUV.y, u_resolution.y);
+                color =  texture2D( tex1, outUV );
+
+                if((c.x >= 0.1) && (c.y >= 0.10)&& (c.z >= 0.10)){
+
+                      color.r = mix(color.r ,c.r, mixAmt);
+                      color.g = mix(color.g ,c.g, mixAmt);
+                      color.b = mix(color.b ,c.b, mixAmt);
+                     // color = c;
+                      //color.r = mix(b.r ,a.r, mixAmt);
+                      //color.g = mix(b.g ,a.g, mixAmt);
+                     // color.b = mix(b.b ,a.b, mixAmt);
+             }
+				gl_FragColor = color;
+                //gl_FragColor=vec4(u_mouse.y / u_resolution.y,0.0,0.0,1.0);
+
+			}
+        </script>
         <script id="feedbackShader" type="x-shader/x-fragment">
 
             varying vec2 vUv;
@@ -248,7 +317,32 @@ gl_FragColor = vec4(color,1.0);
 
 			}
         </script>
+        <script id="feedbackShaderMask" type="x-shader/x-fragment">
 
+            varying vec2 vUv;
+			uniform sampler2D tex0;
+            uniform sampler2D tex1;
+
+
+            uniform vec2 u_resolution;
+            uniform vec2 u_mouse;
+
+        
+			void main() {
+               
+               
+                vec4 color = texture2D( tex0, vUv );
+                vec4 b = texture2D( tex1, vUv );
+
+                if(b.xyz != vec3(0.0)){
+                    color = b;
+                }
+
+				gl_FragColor = color;
+                //gl_FragColor=vec4(u_mouse.y / u_resolution.y,0.0,0.0,1.0);
+
+			}
+        </script>
         <script id="blendShader" type="x-shader/x-fragment">
 
             varying vec2 vUv;
@@ -269,12 +363,68 @@ gl_FragColor = vec4(color,1.0);
                 color.g =  abs(a.g - b.g);
                 color.b =  abs(a.b - b.b);
                 
+                
 				gl_FragColor = color;
-                //gl_FragColor=vec4(u_mouse.y / u_resolution.y,0.0,0.0,1.0);
 
 			}
         </script>
+        <script id="blendShaderMask" type="x-shader/x-fragment">
 
+            varying vec2 vUv;
+			uniform sampler2D tex0;
+            uniform sampler2D tex1;
+            uniform sampler2D tex2;
+
+            uniform vec2 u_resolution;
+            uniform vec2 u_mouse;
+
+        
+			void main() {
+               
+                vec4 color = vec4(0.5, 0.5, 0.5, 1.0);
+                 vec4 a =  texture2D( tex0, vUv );
+                 vec4 b =  texture2D( tex1, vUv );
+                 vec4 c =  texture2D( tex2, vUv );
+
+                color.r =  abs(a.r - b.r);
+                color.g =  abs(a.g - b.g);
+                color.b =  abs(a.b - b.b);
+                if(c.xyz != vec3(0.0)){
+color = c;
+                     // color.r = mix(b.r ,a.r, c.r);
+                     // color.g = mix(b.g ,a.g, c.g);
+                   // color.b = mix(b.b ,a.b, c.b);
+                     
+             }
+                
+				gl_FragColor = color;
+
+			}
+        </script>
+        <script id="softLightShader" type="x-shader/x-fragment">
+
+            varying vec2 vUv;
+			uniform sampler2D tex0;
+            uniform sampler2D tex1;
+
+            uniform vec2 u_resolution;
+
+        
+			void main() {
+               
+                vec4 color = vec4(0.5, 0.5, 0.5, 1.0);
+                 vec4 a =  texture2D( tex0, vUv );
+                 vec4 b =  texture2D( tex1, vUv );
+
+                
+                color.r = b.r < .5 ? (2. * a.r * b.r + a.r * a.r * (1. - 2. * b.r)) : (sqrt(a.r) * (2. * b.r - 1.) + (2. * a.r) * (1. - b.r));
+                color.g = b.g < .5 ? (2. * a.g * b.g + a.g * a.g * (1. - 2. * b.g)) : (sqrt(a.g) * (2. * b.g - 1.) + (2. * a.g) * (1. - b.g));
+                color.b = b.b < .5 ? (2. * a.b * b.b + a.b * a.b * (1. - 2. * b.b)) : (sqrt(a.b) * (2. * b.b - 1.) + (2. * a.b) * (1. - b.b));
+
+				gl_FragColor = color;
+
+			}
+        </script>
         <script id="mixShader" type="x-shader/x-fragment">
 
             varying vec2 vUv;
@@ -296,6 +446,43 @@ gl_FragColor = vec4(color,1.0);
         color.g = mix(b.g ,a.g, mixAmt);
         color.b = mix(b.b ,a.b, mixAmt);
                 
+		gl_FragColor = color;
+                //gl_FragColor=vec4(mixAmt,0.0,0.0,1.0);
+
+			}
+        </script>
+        <script id="mixShaderMask" type="x-shader/x-fragment">
+
+            varying vec2 vUv;
+			uniform sampler2D tex0;
+            uniform sampler2D tex1;
+            uniform sampler2D tex2;
+
+            uniform vec2 u_resolution;
+            uniform float mixAmt;
+
+        
+			void main() {
+               
+                vec4 color = vec4(0.5, 0.5, 0.5, 1.0);
+                 vec4 a =  texture2D( tex0, vUv );
+                 vec4 b =  texture2D( tex1, vUv );
+                 vec4 c =  texture2D( tex2, vUv );
+        color = b ;
+                
+        //color= vec4(1.0,0.0,0.0, 1.0);
+        if(c.xyz != vec3(0.0)){
+
+               //  color.r = mix(b.r ,a.r, c.r * mixAmt);
+               //  color.g = mix(b.g ,a.g, c.g* mixAmt);
+                // color.b = mix(b.b ,a.b, c.b* mixAmt);
+                 color = c;
+                 color.r = mix(b.r ,a.r, mixAmt);
+                 color.g = mix(b.g ,a.g, mixAmt);
+                 color.b = mix(b.b ,a.b, mixAmt);
+        }
+        color = c;
+
 		gl_FragColor = color;
                 //gl_FragColor=vec4(mixAmt,0.0,0.0,1.0);
 
