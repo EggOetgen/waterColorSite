@@ -1,6 +1,8 @@
 var gui = new dat.GUI({name: 'My GUI'});
 let c  = 0;
 let net;
+
+let t = 0;
 // Add a string controller.
 var displaceControls = {
     midPoint: 0.5,
@@ -13,7 +15,7 @@ let hasLoaded = false;
 var noiseControls = {
     speed:0.00,
     scale: 10,
-    damp: 1,
+    damp: 2,
     amp: 1.0,
     offset: 0.3,
     oct: 3
@@ -41,8 +43,11 @@ var sources =  {
     A: 0,
     B: 0
 }
-
 var modulator =  {
+    Source: 0,
+    
+}
+var outputSource =  {
     Source: 0,
     
 }
@@ -97,13 +102,13 @@ gui.add(displaceControls, 'mixAmt', 0., 1.0 );
 // gui.add(displaceControls, 'midPoint', 0., 1.0 );
 gui.add(noiseControls, 'speed', -0.01, 0.01 );
 
-gui.add(noiseControls, 'scale', 1, 30 );
-gui.add(noiseControls, 'damp', 0, 1, 1 );
+gui.add(noiseControls, 'scale', 1, 100 );
+gui.add(noiseControls, 'damp', 0, 3, 1 );
 gui.add(noiseControls, 'amp', 0., 1.0 );
 gui.add(noiseControls, 'offset', 0., 1.0 );
 gui.add(noiseControls, 'oct', 1., 20. );
-gui.add(slopeControls, 'xSpeed', -0.1, 0.1);
-gui.add(slopeControls, 'ySpeed', -0.1, 0.1 );
+gui.add(slopeControls, 'xSpeed', -0.5, 0.5);
+gui.add(slopeControls, 'ySpeed', -0.5, 0.5 );
 gui.add(slopeControls, 'strength', 0.1, 10. );
 gui.add(slopeControls, 'sampleStep', -0.01, 0.01 );
 
@@ -128,15 +133,21 @@ var mesh2 ;
  let mouseX = 0;
  let mouseY = 2;
  const videoEl = document.getElementById('video');
- const bodyPixCanv = document.getElementById('canvas');
+ const bodyPixCanv = document.getElementById('bodyPixCanv');
 
 init();
 animate();
 function init() {
  
-   
+    // var c = document.getElementById("textCanvas");
+    // var ctx = c.getContext("2d");
+        // ctx.moveTo(0, 0);
+        // ctx.lineTo(200, 100);
+        // ctx.stroke();
 
-  textureCam = new THREE.VideoTexture(videoEl);
+//   textureCam = new THREE.CanvasTexture(c);
+    textureCam = new THREE.VideoTexture(videoEl);
+
    maskTexture = new THREE.CanvasTexture(bodyPixCanv);
 
   
@@ -214,6 +225,7 @@ document.body.appendChild(stats.domElement);
 
     uniformsFeedback= {
         tex0: { value: noiseTexture.texture },
+        // tex0: { value: maskTexture },
         u_resolution: { type: "v2", value: new THREE.Vector2() },
         u_mouse: { type: "v2", value: new THREE.Vector2() }
     };
@@ -389,8 +401,25 @@ document.body.appendChild(stats.domElement);
        }
     });
 
-     mesh = new THREE.Mesh( geometry, materialMix );
+     mesh = new THREE.Mesh( geometry, materialDisplace );
     sceneOut.add( mesh );
+    
+    gui.add(outputSource, 'Source', { materialDisplace: 0, materialBlend: 1,materialMix:2,materialSimplex:3 ,materialSlope:4,materialFeedback:5} ).onChange(()=>{
+        if(outputSource.Source     == 0){
+            mesh.material = materialDisplace;
+        } else if(outputSource.Source == 1){
+            mesh.material = materialBlend;
+        } else if(outputSource.Source == 2){
+            mesh.material = materialMix;
+        }else if(outputSource.Source == 3){
+             mesh.material = materialSimplex;
+        }else if(outputSource.Source == 4){
+            mesh.material = materialSlope;
+        }else if(outputSource.Source == 5){
+            mesh.material = materialFeedback;
+        }
+    });
+
      mesh2 = new THREE.Mesh( geometry, materialDisplace );
     rtScene4.add( mesh2);
 
@@ -478,6 +507,11 @@ function render() {
 
     uniformsSlope.xSpeed.value = slopeControls.xSpeed ;
     uniformsSlope.ySpeed.value = slopeControls.ySpeed;
+    // uniformsSlope.xSpeed.value = Math.sin(t) ;
+    // t++;
+    console.log( uniformsSlope.xSpeed.value )
+    uniformsSlope.ySpeed.value = slopeControls.ySpeed;
+
     uniformsSlope.strength.value = slopeControls.strength;
     uniformsSlope.sampleStep.value = slopeControls.sampleStep;
 
@@ -583,8 +617,9 @@ async function loadAndUseBodyPix() {
     maskTexture.needsUpdate=true;
     // // BodyPix model loaded
     const segmentation = await net.segmentPerson(videoEl, {
-  flipHorizontal: false,
+  flipHorizontal: true,
   internalResolution: 'low',
+  opacity:0.1,
   segmentationThreshold: bodyPixControls.multiplier 
 });
     const maskBackground = 1.0;

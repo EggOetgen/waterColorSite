@@ -17,7 +17,8 @@
 
 <body>
     <video id="video" width="640" height="480"muted></video>
-    <canvas id="canvas"></canvas>
+    <canvas id="bodyPixCanv"></canvas>
+    <!-- <canvas id="textCanvas"></canvas> -->
 
     <div id="container"></div>
     <script src="js/src/three.js"></script>
@@ -153,11 +154,20 @@ vec3 color = vec3(0.0);
 // Scale the space in order to see the function
 st *= scale;
 
+//if(st.x > 0.4 && st.x < 0.5){
 if(damp == 0)
 color = vec3(step(fbm(vec3(st.x,st.y, u_time), oct ).x*amp+offset,0.5));
-else
+if(damp == 1){
+color = ((fbm(vec3(st.x,st.y, u_time), oct ).xyz)*amp) + offset;
+    color.r = step(color.r,0.5);
+color.g = step(color.g,0.5);
+color.g = step(color.b,0.5);
+}else if(damp == 2)
 color = vec3(fbm(vec3(st.x,st.y, u_time), oct ).x*amp+offset);
-
+else if(damp == 3)
+color = (fbm(vec3(st.x,st.y, u_time), oct ).xyz*amp) + offset;
+//}
+//color = vec3(1.0);
 gl_FragColor = vec4(color,1.0);
 }
     </script>
@@ -282,7 +292,7 @@ gl_FragColor = vec4(color,1.0);
                 //outUV.y = mod(outUV.y, u_resolution.y);
                 color =  texture2D( tex1, outUV );
 
-                if((c.x >= 0.1) && (c.y >= 0.10)&& (c.z >= 0.10)){
+                if((c.x >= 0.01) && (c.y >= 0.010)&& (c.z >= 0.010)){
 
                       color.r = mix(color.r ,c.r, mixAmt);
                       color.g = mix(color.g ,c.g, mixAmt);

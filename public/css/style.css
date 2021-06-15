@@ -13,6 +13,6 @@ body{
     display: none;
 }
 
-#canvas {
+#bodyPixCanv, #textCanvas {
     display: none;
 }
