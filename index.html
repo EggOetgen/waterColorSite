@@ -265,10 +265,13 @@ gl_FragColor = vec4(color,1.0);
                  vec4 a =  texture2D( tex0, vUv );
                  vec4 b =  texture2D( tex1, vUv );
 
-                color.r =  abs(a.r - b.r);
-                color.g =  abs(a.g - b.g);
-                color.b =  abs(a.b - b.b);
-                
+              //  color.r =  abs(a.r - b.r);
+                //color.g =  abs(a.g - b.g);
+                //color.b =  abs(a.b - b.b);
+                color.r = b.r < .5 ? (2. * a.r * b.r + a.r * a.r * (1. - 2. * b.r)) : (sqrt(a.r) * (2. * b.r - 1.) + (2. * a.r) * (1. - b.r));
+                color.g = b.g < .5 ? (2. * a.g * b.g + a.g * a.g * (1. - 2. * b.g)) : (sqrt(a.g) * (2. * b.g - 1.) + (2. * a.g) * (1. - b.g));
+                color.b = b.b < .5 ? (2. * a.b * b.b + a.b * a.b * (1. - 2. * b.b)) : (sqrt(a.b) * (2. * b.b - 1.) + (2. * a.b) * (1. - b.b));
+
 				gl_FragColor = color;
                 //gl_FragColor=vec4(u_mouse.y / u_resolution.y,0.0,0.0,1.0);
 

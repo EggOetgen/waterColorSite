@@ -280,6 +280,8 @@ function render() {
     uniformsSimplex.u_time.value += 0.01;
     uniformsSimplex.scale.value = noiseControls.scale;
     uniformsSimplex.amp.value = noiseControls.amp;
+
+    uniformsSimplex.damp.value = noiseControls.damp;
     uniformsSimplex.offset.value = noiseControls.offset;
     uniformsSimplex.oct.value = noiseControls.oct;
 
