@@ -7,7 +7,7 @@ let t = 0;
 var displaceControls = {
     midPoint: 0.5,
     weight: 0.05,
-    mixAmt:0.01,
+    mixAmt:0.00,
 
 };
 
@@ -53,7 +53,14 @@ var outputSource =  {
 }
 let cam = false;
 let mod = false;
+var obj = { useWebcam:function(){ 
+    console.log("clicked") 
+    getWebcam();
 
+}
+};
+
+gui.add(obj,'useWebcam');
 
 
 //                              uniformsMix.tex0.value = textureCam;                 
@@ -151,7 +158,7 @@ function init() {
    maskTexture = new THREE.CanvasTexture(bodyPixCanv);
 
   
-getWebcam();
+// getWebcam();
     stats = createStats();
 document.body.appendChild(stats.domElement);
 
@@ -369,7 +376,7 @@ document.body.appendChild(stats.domElement);
             // uniformsMix.tex0.value = noiseTexture.texture;                 
             // uniformsMixMask.tex0.value = noiseTexture.texture;    
             uniformsFeedback.tex0.value = noiseTexture.texture;    
-            uniformsMix.tex0.value = textureCam;                 
+            // uniformsMix.tex0.value = textureCam;                 
             uniformsMix.tex0.value = noiseTexture.texture;    
 
         }
@@ -566,7 +573,7 @@ renderer.render( sceneOut, camera );
 
 uniformsFeedback.tex0.value = displace.texture
 
-if (hasLoaded)loadAndUseBodyPix();
+if (hasLoaded && displaceControls.mixAmt !=0.)loadAndUseBodyPix();
 
 stats.end();
 // loadAndUseBodyPix()
