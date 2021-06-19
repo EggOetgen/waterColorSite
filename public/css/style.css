@@ -16,3 +16,7 @@ body{
 #bodyPixCanv, #textCanvas {
     display: none;
 }
+
+#paintCanvas{
+    /* position: absolute; */
+}

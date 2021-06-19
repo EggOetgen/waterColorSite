@@ -13,7 +13,7 @@ var displaceControls = {
 
 let hasLoaded = false;
 var noiseControls = {
-    speed:0.00,
+    speed:0.02,
     scale: 10,
     damp: 2,
     amp: 1.0,
@@ -30,7 +30,7 @@ var slopeControls = {
 }
 
 var mixControls = {
-    mixAmount:0.01,
+    mixAmount:0.03,
     mult: 1,
 
 }
@@ -137,11 +137,16 @@ let mesh ;
 var meshB;
 var meshBlend;
 var mesh2 ;
+var meshMixCanvas;
+
  let mouseX = 0;
  let mouseY = 2;
  const videoEl = document.getElementById('video');
  const bodyPixCanv = document.getElementById('bodyPixCanv');
-
+ var paintcanvas = document.getElementById("paintCanvas");
+ 
+ var paintctx = paintcanvas.getContext("2d");
+ 
 init();
 animate();
 function init() {
@@ -156,6 +161,7 @@ function init() {
     textureCam = new THREE.VideoTexture(videoEl);
 
    maskTexture = new THREE.CanvasTexture(bodyPixCanv);
+   paintTexture = new THREE.CanvasTexture(paintcanvas);
 
   
 // getWebcam();
@@ -174,6 +180,8 @@ document.body.appendChild(stats.domElement);
     rtScene4 = new THREE.Scene();
     blendScene = new THREE.Scene();
     mixScene = new THREE.Scene();
+    mixCanvasScene = new THREE.Scene();
+
 
 
     noiseTexture = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight);
@@ -182,6 +190,7 @@ document.body.appendChild(stats.domElement);
     displace = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight);
     blend = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight);
     mix = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight);
+    mixCanvas = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight);
 
     var geometry = new THREE.PlaneBufferGeometry( 2,2,window.innerWidth/100, window.innerHeight/100);
     // var geometry = new THREE.PlaneBufferGeometry( 2,2);
@@ -269,7 +278,7 @@ document.body.appendChild(stats.domElement);
 
     uniformsMix= {
         tex0: { value: noiseTexture.texture },
-        tex1: { value: displace.texture },
+        tex1: { value: mixCanvas.texture },
         u_time: { type: "f", value: 1.0 },
         u_resolution: { type: "v2", value: new THREE.Vector2() },
         mixAmt: { type: "f", value: 0. }
@@ -282,6 +291,15 @@ document.body.appendChild(stats.domElement);
         u_resolution: { type: "v2", value: new THREE.Vector2() },
         mixAmt: { type: "f", value: 0. }
     };
+
+    uniformsMixCanvas= {
+        tex0: { value: paintTexture },
+        tex1: { value: displace.texture },
+        u_time: { type: "f", value: 1.0 },
+        u_resolution: { type: "v2", value: new THREE.Vector2() },
+        mixAmt: { type: "f", value: 0. }
+    };
+
     var materialSimplex = new THREE.ShaderMaterial( {
         uniforms: uniformsSimplex,
         vertexShader: document.getElementById( 'vertexShader' ).textContent,
@@ -335,6 +353,11 @@ document.body.appendChild(stats.domElement);
         fragmentShader: document.getElementById( 'mixShader' ).textContent
     } );
 
+    var materialMixCavnas = new THREE.ShaderMaterial( {
+        uniforms: uniformsMixCanvas,
+        vertexShader: document.getElementById( 'vertexShader' ).textContent,
+        fragmentShader: document.getElementById( 'mixCanvasShader' ).textContent
+    } );
     // var materialMix = new THREE.ShaderMaterial( {
     //     uniforms: uniformsMixMask,
     //     vertexShader: document.getElementById( 'vertexShader' ).textContent,
@@ -411,7 +434,7 @@ document.body.appendChild(stats.domElement);
      mesh = new THREE.Mesh( geometry, materialDisplace );
     sceneOut.add( mesh );
     
-    gui.add(outputSource, 'Source', { materialDisplace: 0, materialBlend: 1,materialMix:2,materialSimplex:3 ,materialSlope:4,materialFeedback:5} ).onChange(()=>{
+    gui.add(outputSource, 'Source', { materialDisplace: 0, materialBlend: 1,materialMix:2,materialSimplex:3 ,materialSlope:4,materialFeedback:5, materialMixCavnas:6} ).onChange(()=>{
         if(outputSource.Source     == 0){
             mesh.material = materialDisplace;
         } else if(outputSource.Source == 1){
@@ -424,6 +447,8 @@ document.body.appendChild(stats.domElement);
             mesh.material = materialSlope;
         }else if(outputSource.Source == 5){
             mesh.material = materialFeedback;
+        }else if(outputSource.Source == 6){
+            mesh.material = materialMixCavnas;
         }
     });
 
@@ -443,6 +468,9 @@ document.body.appendChild(stats.domElement);
     var meshD = new THREE.Mesh( geometry, materialFeedback );
 
     rtScene3.add( meshD );
+
+    meshMixCanvas = new THREE.Mesh( geometry, materialMixCavnas );
+    mixCanvasScene.add( meshMixCanvas);
 
     renderer = new THREE.WebGLRenderer();
     renderer.setPixelRatio( window.devicePixelRatio );
@@ -492,11 +520,34 @@ function onWindowResize( event ) {
     uniformsBlend.u_resolution.value.y = renderer.domElement.height/2;
     uniformsMix.u_resolution.value.x = renderer.domElement.width/2;
     uniformsMix.u_resolution.value.y = renderer.domElement.height/2;
+    uniformsMixCanvas.u_resolution.value.x = renderer.domElement.width/2;
+    uniformsMixCanvas.u_resolution.value.y = renderer.domElement.height/2;
+
+    var inMemCanvas = document.createElement('canvas');
+    var inMemCtx = inMemCanvas.getContext('2d');
+    inMemCanvas.width = paintcanvas.width;
+    inMemCanvas.height = paintcanvas.height;
+    inMemCtx.drawImage(paintcanvas, 0, 0);
+    paintcanvas.width = window.innerWidth;
+    paintcanvas.height =  window.innerHeight;
+    paintctx.drawImage(inMemCanvas, 0, 0);
+   
 }
 
 function animate() {
+    paintctx.clearRect(0, 0, paintcanvas.width, paintcanvas.height);
+    // paintctx.fillStyle = "rgb(" + Math.random()  * 255+"," + Math.random()  * 255+"," +Math.random()  * 255 + ")";
+    paintctx.fillStyle = "rgba(" + Math.random()  * 255+"," + Math.random()  * 255+"," +Math.random()  * 255 + "," + 0.9   +")";
+    paintctx.fillRect(Math.random()  * paintcanvas.width, Math.random()  * paintcanvas.height, 15, 10);
+
+    // paintctx.arc(Math.random()  * paintcanvas.width, Math.random()  * paintcanvas.height, 15,0, 2 * Math.PI);
+    // paintctx.fill();
+    paintTexture.needsUpdate = true;
+
     requestAnimationFrame( animate );
     render();
+
+   
 }
 
 function render() {
@@ -524,6 +575,7 @@ function render() {
 
     uniformsMix.mixAmt.value = mixControls.mixAmount * mixControls.mult;
     uniformsMixMask.mixAmt.value = mixControls.mixAmount * mixControls.mult;
+    uniformsMixCanvas.tex0.value = paintTexture;
 
     // uniformsDisplace.midPoint.value = displaceControls.midPoint;
 
@@ -570,8 +622,12 @@ renderer.setRenderTarget( null );
 renderer.clear();
 renderer.render( sceneOut, camera );
 
+// uniformsMixCanvas.tex1.value = displace.texture;
+renderer.setRenderTarget( mixCanvas );
+renderer.clear();
+renderer.render( mixCanvasScene, camera );
 
-uniformsFeedback.tex0.value = displace.texture
+uniformsFeedback.tex0.value = mixCanvas.texture
 
 if (hasLoaded && displaceControls.mixAmt !=0.)loadAndUseBodyPix();
 
